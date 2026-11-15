@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mini-redis
+  labels:
+    app: mini-redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mini-redis
+  template:
+    metadata:
+      labels:
+        app: mini-redis
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9121"
+        prometheus.io/path: "/metrics"
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: mini-redis
+          image: ghcr.io/oxdurgeshxo/mini-redis:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 6379
+              name: redis-port
+            - containerPort: 9121
+              name: metrics-port
+          env:
+            - name: REDIS_PORT
+              value: "6379"
+            - name: METRICS_PORT
+              value: "9121"
+            - name: REDIS_AOF
+              value: "true"
+            - name: REDIS_AOF_PATH
+              value: "/data/appendonly.aof"
+            - name: REDIS_RDB_PATH
+              value: "/data/dump.rdb"
+            - name: REDIS_FSYNC_POLICY
+              value: "everysec"
+            - name: LOG_LEVEL
+              value: "INFO"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 9121
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 9121
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          volumeMounts:
+            - name: data-volume
+              mountPath: /data
+      volumes:
+        - name: data-volume
+          persistentVolumeClaim:
+            claimName: mini-redis-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mini-redis-service
+  labels:
+    app: mini-redis
+spec:
+  type: ClusterIP
+  ports:
+    - port: 6379
+      targetPort: 6379
+      name: redis
+    - port: 9121
+      targetPort: 9121
+      name: metrics
+  selector:
+    app: mini-redis
