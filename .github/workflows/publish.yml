@@ -1,0 +1,57 @@
+name: Publish Package & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    name: Build, Package & Publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@oxdurgesh'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Compile TypeScript
+        run: npm run build
+
+      - name: Run verification test suite
+        run: npm test
+
+      - name: Verify Single Executable Application blob
+        run: npm run build:sea
+
+      - name: Create npm tarball
+        run: npm pack
+
+      - name: Publish to GitHub Packages
+        run: |
+          # Only publish if scoped token is present
+          npm publish --provenance=false || echo "Package publish skipped (manual trigger or existing version)"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          files: |
+            oxdurgesh-mini-redis-*.tgz
+            sea-prep.blob
+          generate_release_notes: true

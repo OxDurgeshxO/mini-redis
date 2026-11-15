@@ -7,6 +7,19 @@
     "mini-redis": "./dist/index.js"
   },
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OxDurgeshxO/mini-redis.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "files": [
+    "dist",
+    "sea-config.json",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
     "build:sea": "tsc && node --experimental-sea-config sea-config.json",
