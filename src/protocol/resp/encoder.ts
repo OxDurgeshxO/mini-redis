@@ -49,6 +49,11 @@ export class RespEncoder {
     return Buffer.concat(parts);
   }
 
+  public static rawArray(buffers: Buffer[]): Buffer {
+    const header = Buffer.from(`*${buffers.length}\r\n`, "utf-8");
+    return Buffer.concat([header, ...buffers]);
+  }
+
   public static null(proto: ProtocolVersion = 2): Buffer {
     return proto === 3 ? Buffer.from("_\r\n", "utf-8") : Buffer.from("$-1\r\n", "utf-8");
   }
