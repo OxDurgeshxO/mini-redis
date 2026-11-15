@@ -9,6 +9,7 @@
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
     "demo": "node scripts/demo.ts",
+    "benchmark": "node scripts/benchmark.ts",
     "test": "node --test tests/server.test.ts"
   },
   "devDependencies": {
