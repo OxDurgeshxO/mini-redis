@@ -1,3 +1,6 @@
+import fs from "fs";
+import path from "path";
+
 interface StoreEntry {
   value: string;
   expiresAt: number | null; // epoch timestamp in ms, or null if persistent
@@ -53,5 +56,57 @@ export class KeyValueStore {
       }
     }
     return this.store.size;
+  }
+
+  public saveRdb(filepath: string): void {
+    const now = Date.now();
+    const data: Record<string, { value: string; expiresAt: number | null }> = {};
+    for (const [k, v] of this.store.entries()) {
+      if (v.expiresAt === null || v.expiresAt > now) {
+        data[k] = v;
+      }
+    }
+
+    const magic = Buffer.from("REDIS0009", "utf-8");
+    const payload = Buffer.from(JSON.stringify(data), "utf-8");
+    const eof = Buffer.from([0xFF]);
+    const fileBuffer = Buffer.concat([magic, payload, eof]);
+
+    const dir = path.dirname(filepath);
+    if (dir && dir !== "." && !fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+
+    const tmpPath = `${filepath}.tmp`;
+    fs.writeFileSync(tmpPath, fileBuffer);
+    fs.renameSync(tmpPath, filepath);
+  }
+
+  public loadRdb(filepath: string): boolean {
+    try {
+      if (!fs.existsSync(filepath)) return false;
+
+      const fileBuffer = fs.readFileSync(filepath);
+      if (fileBuffer.length < 10) return false;
+
+      const magic = fileBuffer.subarray(0, 9).toString("utf-8");
+      if (magic !== "REDIS0009") return false;
+
+      const eofIndex = fileBuffer.lastIndexOf(0xFF);
+      const jsonEnd = eofIndex > 9 ? eofIndex : fileBuffer.length;
+      const jsonStr = fileBuffer.subarray(9, jsonEnd).toString("utf-8");
+      const data = JSON.parse(jsonStr) as Record<string, { value: string; expiresAt: number | null }>;
+
+      const now = Date.now();
+      this.store.clear();
+      for (const [k, v] of Object.entries(data)) {
+        if (v.expiresAt === null || v.expiresAt > now) {
+          this.store.set(k, v);
+        }
+      }
+      return true;
+    } catch {
+      return false;
+    }
   }
 }

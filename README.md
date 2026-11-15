@@ -14,6 +14,7 @@
 - **Asynchronous Event Loop:** Native Node.js `net` socket server handling concurrent clients without external runtime dependencies.
 - **In-Memory Key-Value Store:** Memory map supporting atomic `SET`, `GET`, `DEL`, `EXISTS`, and `DBSIZE`.
 - **TTL Expiration Engine:** High-resolution millisecond key expiration (`PX` and `EX` flags) with active memory garbage collection on access.
+- **RDB Disk Persistence Engine:** Binary `.rdb` point-in-time snapshot generator with atomic temp-file flushing and automatic state restoration on server boot.
 
 ---
 
@@ -28,6 +29,8 @@
 | `DEL` | `DEL <key> [key2...]` | Deletes keys and returns count of removed entries |
 | `EXISTS` | `EXISTS <key> [key2...]` | Checks presence of keys, returns integer count |
 | `DBSIZE` | `DBSIZE` | Returns current active key count |
+| `SAVE` | `SAVE` | Synchronously flushes RDB snapshot to disk |
+| `BGSAVE` | `BGSAVE` | Asynchronously dumps point-in-time snapshot to disk in background |
 
 ---
 

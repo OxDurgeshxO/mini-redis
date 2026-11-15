@@ -6,9 +6,13 @@ export class MiniRedisServer {
   private server: net.Server;
   private store: KeyValueStore = new KeyValueStore();
   private port: number;
+  private rdbPath: string;
 
-  constructor(port: number = 6379) {
+  constructor(port: number = 6379, rdbPath: string = "dump.rdb") {
     this.port = port;
+    this.rdbPath = rdbPath;
+    this.store.loadRdb(this.rdbPath);
+
     this.server = net.createServer((socket: net.Socket) => {
       this.handleConnection(socket);
     });
@@ -29,7 +33,7 @@ export class MiniRedisServer {
       }
     });
 
-    socket.on("error", (err: Error) => {
+    socket.on("error", (_err: Error) => {
       // Gracefully handle client disconnects
     });
   }
@@ -101,6 +105,26 @@ export class MiniRedisServer {
 
       case "DBSIZE": {
         return RespEncoder.integer(this.store.size());
+      }
+
+      case "SAVE": {
+        try {
+          this.store.saveRdb(this.rdbPath);
+          return RespEncoder.ok();
+        } catch (err: any) {
+          return RespEncoder.error(`save failed: ${err.message}`);
+        }
+      }
+
+      case "BGSAVE": {
+        setImmediate(() => {
+          try {
+            this.store.saveRdb(this.rdbPath);
+          } catch {
+            // Background save error handling
+          }
+        });
+        return RespEncoder.simpleString("Background saving started");
       }
 
       case "COMMAND": {
