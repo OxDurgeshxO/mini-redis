@@ -9,6 +9,39 @@
 
 ---
 
+## Architecture & Protocol Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Client as Redis CLI / TCP Client
+    participant Server as TCP Server (net.Socket)
+    participant Parser as RESP2 Parser & Serializer
+    participant Store as In-Memory Key-Value Store
+    participant Sweeper as Active / Passive TTL Sweeper
+
+    Client->>Server: Connect (Raw TCP Stream on port 6379)
+    Client->>Server: Send RESP Command ("*3\r\n$3\r\nSET\r\n$3\r\nfoo\r\n$3\r\nbar\r\n")
+    Server->>Parser: Parse Raw Bytes Buffer
+    Parser->>Store: Execute Command (SET foo "bar" [EX/PX])
+    Store->>Sweeper: Register Key TTL (if expiry requested)
+    Store-->>Parser: Result ("+OK\r\n")
+    Parser-->>Server: Serialized RESP2 Frame Buffer
+    Server-->>Client: Send Response ("+OK\r\n")
+```
+
+## Instant Zero-Install Execution
+
+### Run with Docker (GitHub Container Registry)
+```bash
+docker run -d -p 6379:6379 ghcr.io/oxdurgeshxo/mini-redis:latest
+```
+
+### Run with NPX
+```bash
+npx mini-redis
+```
+
 ## Architecture & Features
 
 - **RESP Parser & Serializer:** Implements the official Redis Serialization Protocol (Simple Strings, Errors, Integers, Bulk Strings, Arrays) over raw TCP streams.
