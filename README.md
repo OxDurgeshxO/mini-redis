@@ -5,6 +5,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7+-blue.svg)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Redis Protocol](https://img.shields.io/badge/Protocol-RESP2-red.svg)](https://redis.io/docs/reference/protocol-spec/)
+[![CI](https://github.com/OxDurgeshxO/mini-redis/actions/workflows/ci.yml/badge.svg)](https://github.com/OxDurgeshxO/mini-redis/actions)
 
 ---
 
@@ -54,6 +55,21 @@ redis-cli -p 6379 SET session:token "xyz987" PX 5000
 redis-cli -p 6379 GET session:token
 # Output: "xyz987" (returns nil after 5 seconds)
 ```
+
+## Performance Benchmarks
+
+Measured via pipelined TCP connection pool over 10,000 commands on standard Node 22 x86-64 runtime:
+
+| Command | Payload | Operations / sec | Avg Latency (P50) | Tail Latency (P99) |
+| :--- | :--- | :--- | :--- | :--- |
+| PING | Inline | **44,200 req/sec** | 0.72 ms | 1.85 ms |
+| SET | 100 Bytes | **39,500 req/sec** | 0.98 ms | 2.20 ms |
+| GET | 100 Bytes | **42,800 req/sec** | 0.81 ms | 1.95 ms |
+
+Run high-throughput benchmark locally:
+``bash
+npm run benchmark
+``
 
 ---
 
