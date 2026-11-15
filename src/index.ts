@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { MiniRedisServer } from "./server.js";
 
 const PORT = parseInt(process.env.REDIS_PORT || "6379", 10);
