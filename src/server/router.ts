@@ -7,6 +7,8 @@ import { ServerCommands } from "../commands/server.js";
 import { AofEngine } from "../persistence/aof.js";
 import { RdbSnapshotEngine } from "../persistence/rdb-snapshot.js";
 import { metrics } from "../observability/metrics.js";
+import { ClusterManager } from "../cluster/cluster_manager.js";
+import { keyToSlot } from "../cluster/hash_slot.js";
 
 const MUTATING_COMMANDS = new Set([
   "SET",
@@ -26,11 +28,18 @@ export class CommandRouter {
   private store: KeyValueStore;
   private aofEngine?: AofEngine;
   private rdbEngine?: RdbSnapshotEngine;
+  private clusterManager: ClusterManager;
 
-  constructor(store: KeyValueStore, aofEngine?: AofEngine, rdbEngine?: RdbSnapshotEngine) {
+  constructor(
+    store: KeyValueStore,
+    aofEngine?: AofEngine,
+    rdbEngine?: RdbSnapshotEngine,
+    clusterManager?: ClusterManager
+  ) {
     this.store = store;
     this.aofEngine = aofEngine;
     this.rdbEngine = rdbEngine;
+    this.clusterManager = clusterManager || new ClusterManager();
   }
 
   public dispatch(
@@ -70,6 +79,38 @@ export class CommandRouter {
         case "COMMAND":
           response = ServerCommands.command();
           break;
+        case "CLUSTER": {
+          const subcmd = (args[1] || "").toUpperCase();
+          if (subcmd === "KEYSLOT") {
+            if (args.length !== 3) {
+              response = RespEncoder.error("ERR wrong number of arguments for 'cluster keyslot' command");
+            } else {
+              response = RespEncoder.integer(keyToSlot(args[2]));
+            }
+          } else if (subcmd === "NODES") {
+            response = RespEncoder.bulkString(this.clusterManager.getClusterNodes(), proto);
+          } else if (subcmd === "INFO") {
+            response = RespEncoder.bulkString(this.clusterManager.getClusterInfo(), proto);
+          } else if (subcmd === "SLOTS") {
+            const slots = this.clusterManager.getClusterSlots();
+            const slotBuffers = slots.map(slot => {
+              const nodeEndpoint = RespEncoder.rawArray([
+                RespEncoder.bulkString(slot[2][0]),
+                RespEncoder.integer(slot[2][1]),
+                RespEncoder.bulkString(slot[2][2])
+              ]);
+              return RespEncoder.rawArray([
+                RespEncoder.integer(slot[0]),
+                RespEncoder.integer(slot[1]),
+                nodeEndpoint
+              ]);
+            });
+            response = RespEncoder.rawArray(slotBuffers);
+          } else {
+            response = RespEncoder.error(`ERR unknown cluster subcommand '${args[1]}'`);
+          }
+          break;
+        }
         case "FLUSHDB":
           response = ServerCommands.flushdb(this.store);
           break;
