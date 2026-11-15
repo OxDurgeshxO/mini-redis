@@ -1,12 +1,12 @@
 # mini-redis
 
-> A wire-compatible, in-memory Redis implementation from scratch in TypeScript with RESP2/RESP3 protocol, AOF write-ahead logging, RDB snapshotting, and Node Single Executable Application (SEA) binary compilation. Built with first-principles systems engineering following `codecrafters-io/build-your-own-x`.
-
+[![CI](https://github.com/OxDurgeshxO/mini-redis/actions/workflows/ci.yml/badge.svg)](https://github.com/OxDurgeshxO/mini-redis/actions/workflows/ci.yml)
+[![Security](https://github.com/OxDurgeshxO/mini-redis/actions/workflows/security.yml/badge.svg)](https://github.com/OxDurgeshxO/mini-redis/actions/workflows/security.yml)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+[![Health Score](https://img.shields.io/badge/Health_Score-Grade_A-brightgreen.svg)](./REPOSITORY_HEALTH.md)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7+-blue.svg)](https://www.typescriptlang.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Redis Protocol](https://img.shields.io/badge/Protocol-RESP2%20%7C%20RESP3-red.svg)](https://redis.io/docs/reference/protocol-spec/)
-[![Persistence](https://img.shields.io/badge/Persistence-AOF%20%2B%20RDB-green.svg)](https://redis.io/docs/management/persistence/)
-[![CI](https://github.com/OxDurgeshxO/mini-redis/actions/workflows/ci.yml/badge.svg)](https://github.com/OxDurgeshxO/mini-redis/actions)
+[![Protocol](https://img.shields.io/badge/Protocol-RESP2%20%7C%20RESP3-red.svg)](./docs/PROTOCOL.md)
+[![Persistence](https://img.shields.io/badge/Persistence-AOF%20%2B%20RDB-green.svg)](./docs/PERSISTENCE.md)
 
 ---
 
@@ -138,9 +138,22 @@ npm run benchmark
 
 ---
 
+## Documentation & Specifications
+
+- **[Architecture & Design (`docs/ARCHITECTURE.md`)](./docs/ARCHITECTURE.md)**: TCP socket model, streaming parser, storage engine, and persistence lifecycles.
+- **[Protocol Conformance (`docs/PROTOCOL.md`)](./docs/PROTOCOL.md)**: RESP2/RESP3 wire formats, inline commands, and pipelining.
+- **[Command Reference (`docs/COMMANDS.md`)](./docs/COMMANDS.md)**: Exhaustive reference for Strings, Keys, Hashes, Sets, Server, and Operations.
+- **[Persistence & Durability (`docs/PERSISTENCE.md`)](./docs/PERSISTENCE.md)**: AOF sync policies (`always`, `everysec`, `no`), log compaction, and SHA-256 RDB snapshots.
+- **[Benchmark Report (`docs/BENCHMARKS.md`)](./docs/BENCHMARKS.md)**: Full throughput, p50/p95/p99 latency, concurrency, and memory metrics.
+- **[Operations & Deployment (`docs/OPERATIONS.md`)](./docs/OPERATIONS.md)**: Docker health checks, Kubernetes deployment, and Prometheus telemetry.
+- **[Architecture Roadmap (`docs/ROADMAP.md`)](./docs/ROADMAP.md)**: Trajectory for replication, clustering, and scripting.
+- **[Project Overview (`docs/OVERVIEW.md`)](./docs/OVERVIEW.md)**: Executive summary, problem statement, and engineering lessons.
+
+---
+
 ## Test & Verification
 
-Run the 20-test verification suite covering commands, RESP3 types, and AOF persistence:
+Run the 46-test automated verification suite:
 ```bash
 npm test
 ```
