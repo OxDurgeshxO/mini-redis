@@ -25,6 +25,7 @@
     "build:sea": "tsc && node --experimental-sea-config sea-config.json",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
+    "cli": "tsx scripts/cli.ts",
     "demo": "node scripts/demo.ts",
     "benchmark": "tsc && tsx benchmarks/run-all.ts",
     "test": "node --test tests/*.test.ts",
