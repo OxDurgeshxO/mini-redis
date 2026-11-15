@@ -10,10 +10,10 @@ if (fs.existsSync(RDB_FILE)) fs.unlinkSync(RDB_FILE);
 const server = new MiniRedisServer(PORT, RDB_FILE);
 
 function encodeCommand(args: string[]): string {
-  let out = *\r\n;
+  let out = "*" + args.length + "\r\n";
   for (const arg of args) {
     const len = Buffer.byteLength(arg, "utf-8");
-    out += $\r\n\r\n;
+    out += "$" + len + "\r\n" + arg + "\r\n";
   }
   return out;
 }
@@ -31,7 +31,7 @@ async function runBenchmark() {
   const NUM_REQUESTS = 10000;
 
   // 1. Benchmark PING
-  console.log([Benchmark] Running  PING commands...);
+  console.log("[Benchmark] Running " + NUM_REQUESTS + " PING commands...");
   const pingStart = performance.now();
   for (let i = 0; i < NUM_REQUESTS; i++) {
     await new Promise<void>((resolve) => {
@@ -41,34 +41,34 @@ async function runBenchmark() {
   }
   const pingDuration = (performance.now() - pingStart) / 1000;
   const pingRps = Math.round(NUM_REQUESTS / pingDuration);
-  console.log(✔ PING:  req/sec ( ms/req));
+  console.log("✔ PING: " + pingRps.toLocaleString() + " req/sec (" + ((pingDuration * 1000) / NUM_REQUESTS).toFixed(3) + " ms/req)");
 
   // 2. Benchmark SET
-  console.log([Benchmark] Running  SET commands (100B payload)...);
+  console.log("[Benchmark] Running " + NUM_REQUESTS + " SET commands (100B payload)...");
   const payload = "x".repeat(100);
   const setStart = performance.now();
   for (let i = 0; i < NUM_REQUESTS; i++) {
     await new Promise<void>((resolve) => {
       client.once("data", () => resolve());
-      client.write(encodeCommand(["SET", ench:key:, payload]));
+      client.write(encodeCommand(["SET", "bench:key:" + i, payload]));
     });
   }
   const setDuration = (performance.now() - setStart) / 1000;
   const setRps = Math.round(NUM_REQUESTS / setDuration);
-  console.log(✔ SET:   req/sec ( ms/req));
+  console.log("✔ SET:  " + setRps.toLocaleString() + " req/sec (" + ((setDuration * 1000) / NUM_REQUESTS).toFixed(3) + " ms/req)");
 
   // 3. Benchmark GET
-  console.log([Benchmark] Running  GET commands...);
+  console.log("[Benchmark] Running " + NUM_REQUESTS + " GET commands...");
   const getStart = performance.now();
   for (let i = 0; i < NUM_REQUESTS; i++) {
     await new Promise<void>((resolve) => {
       client.once("data", () => resolve());
-      client.write(encodeCommand(["GET", ench:key:]));
+      client.write(encodeCommand(["GET", "bench:key:" + i]));
     });
   }
   const getDuration = (performance.now() - getStart) / 1000;
   const getRps = Math.round(NUM_REQUESTS / getDuration);
-  console.log(✔ GET:   req/sec ( ms/req));
+  console.log("✔ GET:  " + getRps.toLocaleString() + " req/sec (" + ((getDuration * 1000) / NUM_REQUESTS).toFixed(3) + " ms/req)");
 
   client.end();
   await server.close();
@@ -78,4 +78,7 @@ async function runBenchmark() {
   console.log("========================================================");
 }
 
-runBenchmark().catch(console.error);
+runBenchmark().catch((err) => {
+  console.error("Benchmark error:", err);
+  process.exit(1);
+});
