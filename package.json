@@ -26,8 +26,11 @@
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
     "demo": "node scripts/demo.ts",
-    "benchmark": "node scripts/benchmark.ts",
-    "test": "node --test tests/server.test.ts tests/resp3.test.ts tests/aof.test.ts"
+    "benchmark": "tsc && tsx benchmarks/run-all.ts",
+    "test": "node --test tests/*.test.ts",
+    "test:protocol": "node --test tests/protocol_conformance.test.ts",
+    "test:fuzz": "node --test tests/fuzz.test.ts",
+    "test:recovery": "node --test tests/persistence_recovery.test.ts"
   },
   "keywords": [
     "redis",
@@ -42,6 +45,11 @@
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^22.13.0",
+    "tsx": "^4.23.15",
     "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "fast-check": "^4.10.2",
+    "zod": "^4.6.7"
   }
 }

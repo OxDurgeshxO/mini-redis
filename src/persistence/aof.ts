@@ -1,9 +1,13 @@
 import fs from "fs";
 import path from "path";
-import { RespEncoder, RespParser } from "../resp.js";
-import { KeyValueStore } from "../store.js";
+import { RespEncoder } from "../protocol/resp/encoder.js";
+import { RespParser } from "../protocol/resp/parser.js";
+import { KeyValueStore } from "../storage/memory-store.js";
+import { FsyncPolicy } from "../protocol/resp/types.js";
+import { AofCompactor } from "./compaction.js";
+import { logger } from "../observability/logger.js";
 
-export type FsyncPolicy = "always" | "everysec" | "no";
+export { FsyncPolicy };
 
 export class AofEngine {
   private filepath: string;
@@ -59,6 +63,8 @@ export class AofEngine {
       if (sync) {
         fs.fsyncSync(this.fd);
       }
+    } catch (err) {
+      logger.error("Error writing AOF buffer", { error: String(err) });
     } finally {
       this.isWriting = false;
     }
@@ -83,6 +89,9 @@ export class AofEngine {
         const key = args[1];
         const val = args[2];
         let ttlMs: number | undefined;
+        let nx = false;
+        let xx = false;
+
         for (let i = 3; i < args.length; i++) {
           const opt = args[i].toUpperCase();
           if (opt === "PX" && i + 1 < args.length) {
@@ -91,76 +100,71 @@ export class AofEngine {
           } else if (opt === "EX" && i + 1 < args.length) {
             ttlMs = parseInt(args[i + 1], 10) * 1000;
             i++;
+          } else if (opt === "NX") {
+            nx = true;
+          } else if (opt === "XX") {
+            xx = true;
           }
         }
-        store.set(key, val, ttlMs);
+        store.set(key, val, ttlMs, nx, xx);
       } else if (cmd === "DEL") {
         for (let i = 1; i < args.length; i++) {
           store.delete(args[i]);
         }
       } else if (cmd === "HSET") {
         const key = args[1];
-        for (let i = 2; i + 1 < args.length; i += 2) {
-          store.hset(key, args[i], args[i + 1]);
+        for (let i = 2; i < args.length; i += 2) {
+          if (i + 1 < args.length) {
+            store.hset(key, args[i], args[i + 1]);
+          }
         }
       } else if (cmd === "SADD") {
         const key = args[1];
-        store.sadd(key, args.slice(2));
+        const members = args.slice(2);
+        store.sadd(key, members);
+      } else if (cmd === "INCR") {
+        store.incr(args[1], 1);
+      } else if (cmd === "DECR") {
+        store.incr(args[1], -1);
+      } else if (cmd === "APPEND") {
+        store.append(args[1], args[2]);
+      } else if (cmd === "EXPIRE") {
+        store.expire(args[1], parseInt(args[2], 10));
+      } else if (cmd === "PERSIST") {
+        store.persist(args[1]);
+      } else if (cmd === "RENAME") {
+        store.rename(args[1], args[2]);
+      } else if (cmd === "FLUSHDB") {
+        store.flushdb();
       }
+
       replayedCommands++;
     }
 
+    logger.info("AOF replay complete", { filepath: this.filepath, replayedCommands });
     return replayedCommands;
   }
 
-  public async rewrite(store: KeyValueStore): Promise<void> {
-    const tmpPath = `${this.filepath}.rewrite.tmp`;
-    const tmpFd = fs.openSync(tmpPath, "w");
-
-    try {
-      // Rebuild string commands
-      for (const [key, value, remainingTtlMs] of store.getAllStrings()) {
-        const args = ["SET", key, value];
-        if (remainingTtlMs !== null && remainingTtlMs > 0) {
-          args.push("PX", Math.floor(remainingTtlMs).toString());
-        }
-        const buf = RespEncoder.commandToBuffer(args);
-        fs.writeSync(tmpFd, buf, 0, buf.length, null);
-      }
-
-      // Rebuild hashes
-      for (const [key, fields] of store.getAllHashes()) {
-        if (fields.length === 0) continue;
-        const args = ["HSET", key];
-        for (const [f, v] of fields) {
-          args.push(f, v);
-        }
-        const buf = RespEncoder.commandToBuffer(args);
-        fs.writeSync(tmpFd, buf, 0, buf.length, null);
-      }
-
-      // Rebuild sets
-      for (const [key, members] of store.getAllSets()) {
-        if (members.length === 0) continue;
-        const args = ["SADD", key, ...members];
-        const buf = RespEncoder.commandToBuffer(args);
-        fs.writeSync(tmpFd, buf, 0, buf.length, null);
-      }
-
-      fs.fsyncSync(tmpFd);
-    } finally {
-      fs.closeSync(tmpFd);
-    }
-
-    // Safely close active fd before atomic swap
-    if (this.fd) {
-      this.flush(true);
-      fs.closeSync(this.fd);
+  public rewrite(store: KeyValueStore): boolean {
+    this.flush(true);
+    if (this.fd !== null) {
+      try {
+        fs.closeSync(this.fd);
+      } catch {}
       this.fd = null;
     }
-
-    fs.renameSync(tmpPath, this.filepath);
+    const success = AofCompactor.rewrite(store, this.filepath);
     this.fd = fs.openSync(this.filepath, "a+");
+    return success;
+  }
+
+  public bgrewriteaof(store: KeyValueStore): Promise<boolean> {
+    return new Promise((resolve) => {
+      setImmediate(() => {
+        const result = this.rewrite(store);
+        resolve(result);
+      });
+    });
   }
 
   public close(): void {
@@ -168,9 +172,11 @@ export class AofEngine {
       clearInterval(this.syncTimer);
       this.syncTimer = null;
     }
+    this.flush(true);
     if (this.fd) {
-      this.flush(true);
-      fs.closeSync(this.fd);
+      try {
+        fs.closeSync(this.fd);
+      } catch {}
       this.fd = null;
     }
   }
