@@ -50,7 +50,7 @@
     "typescript": "^5.7.3"
   },
   "dependencies": {
-    "fast-check": "^4.10.2",
+    "fast-check": "^4.10.3",
     "zod": "^4.6.7"
   }
 }
